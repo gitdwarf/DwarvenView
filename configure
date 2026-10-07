@@ -1,0 +1,30 @@
+#!/bin/sh
+# Autoconf-style configure wrapper around Meson.
+# Allows src2pkg, SlackBuilds, and other tools to build DwarvenView
+# using the standard ./configure && make && make install idiom.
+
+PREFIX=/usr
+LIBDIR=
+
+for arg in "$@"; do
+    case "$arg" in
+        --prefix=*)   PREFIX="${arg#--prefix=}" ;;
+        --libdir=*)   LIBDIR="${arg#--libdir=}" ;;
+        --help)
+            echo "Usage: ./configure [--prefix=PREFIX] [--libdir=LIBDIR]"
+            echo "  Delegates to meson setup."
+            echo "  DESTDIR is an install-time setting, not a configure option:"
+            echo "    make install DESTDIR=/some/staging/dir"
+            exit 0 ;;
+        *)
+            # Packaging tools pass autotools-only flags out of habit
+            # (--build=, --host=, --disable-static ...). Forwarding them would
+            # make meson hard-error; dropping them silently hides typos.
+            echo "configure: warning: ignoring unrecognised option '$arg'" >&2 ;;
+    esac
+done
+
+set -- --buildtype=release --prefix="$PREFIX"
+[ -n "$LIBDIR" ] && set -- "$@" --libdir="$LIBDIR"
+
+exec meson setup build "$@" --wipe

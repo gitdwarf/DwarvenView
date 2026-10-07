@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.gitdwarf.dwarvenview</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>DwarvenView</name>
+  <summary>Fast image viewer with crop-and-zoom and high-quality export</summary>
+  <description>
+    <p>
+      DwarvenView loads images quickly through a progressive resolution ladder, lets you
+      zoom, crop, rotate, flip and pan, then exports exactly what you see at maximum quality.
+    </p>
+    <ul>
+      <li>Select a region and zoom into it, then export just that region</li>
+      <li>Opens PNG, JPEG, WebP, BMP, TIFF, GIF, SVG, XCursor and anything ffmpeg can decode</li>
+      <li>Converts to PNG, JPEG, WebP, TIFF, BMP and SVG, and sets the wallpaper</li>
+      <li>Slideshow, fullscreen, drag and drop, and a file properties window</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">dwarvenview.desktop</launchable>
+  <url type="homepage">https://github.com/gitdwarf/dwarvenview</url>
+  <url type="bugtracker">https://github.com/gitdwarf/dwarvenview/issues</url>
+  <developer id="io.github.gitdwarf">
+    <name>thedwarf</name>
+  </developer>
+  <provides>
+    <binary>dwarvenview</binary>
+  </provides>
+  <categories>
+    <category>Graphics</category>
+    <category>Viewer</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+</component>

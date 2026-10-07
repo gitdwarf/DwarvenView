@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Outer frame -->
+  <rect x="4" y="10" width="56" height="44" rx="5" ry="5"
+        fill="#2a2a3a" stroke="#7a7aaa" stroke-width="2"/>
+  <!-- Image area background -->
+  <rect x="8" y="14" width="48" height="36" rx="3" ry="3" fill="#1a1a2a"/>
+  <!-- Mountain / landscape -->
+  <polygon points="14,46 28,24 36,34 42,28 52,46"
+           fill="#4a6a9a" opacity="0.9"/>
+  <!-- Sun -->
+  <circle cx="44" cy="22" r="6" fill="#f0c040" opacity="0.95"/>
+  <!-- Lens ring (viewfinder feel) -->
+  <circle cx="32" cy="32" r="14" fill="none"
+          stroke="#7a7aaa" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="32" cy="32" r="10" fill="none"
+          stroke="#9a9acc" stroke-width="1" opacity="0.3"/>
+  <!-- Corner brackets -->
+  <path d="M10,18 L10,14 L14,14" fill="none" stroke="#aaaacc" stroke-width="1.5"/>
+  <path d="M54,18 L54,14 L50,14" fill="none" stroke="#aaaacc" stroke-width="1.5"/>
+  <path d="M10,46 L10,50 L14,50" fill="none" stroke="#aaaacc" stroke-width="1.5"/>
+  <path d="M54,46 L54,50 L50,50" fill="none" stroke="#aaaacc" stroke-width="1.5"/>
+</svg>

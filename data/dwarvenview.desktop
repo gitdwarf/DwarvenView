@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=DwarvenView
+GenericName=Image Viewer
+Comment=Dwarven image viewer with crop-and-zoom and high-quality export
+Exec=dwarvenview %F
+Icon=dwarvenview
+Categories=Graphics;Viewer;
+MimeType=image/png;image/jpeg;image/webp;image/gif;image/bmp;image/tiff;image/svg+xml;image/x-portable-pixmap;image/x-xcursor;
+Keywords=image;viewer;photo;picture;
+StartupNotify=true
