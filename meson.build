@@ -1,9 +1,9 @@
 project('dwarvenview', 'c',
-  version : '0.5.52',
+  version : '0.5.58',
   default_options : ['warning_level=2', 'c_std=c11'])
 
 # Bumped with the version above; used only by the AppStream release entry.
-release_date = '2026-10-07'
+release_date = '2026-10-15'
 
 conf = configuration_data()
 conf.set_quoted('PACKAGE_VERSION', meson.project_version())

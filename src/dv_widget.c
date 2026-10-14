@@ -897,6 +897,9 @@ on_key_pressed (GtkEventControllerKey *ctrl,
             gtk_widget_queue_draw (GTK_WIDGET (self));
             return TRUE;
         }
+        /* Nothing left to step back: let the window have Escape (it leaves fullscreen) */
+        if (self->viewport.history->len == 0)
+            return FALSE;
         dv_viewport_undo (&self->viewport);
         g_signal_emit (self, signals[SIGNAL_ZOOM_CHANGED], 0,
                        self->viewport.zoom);
@@ -1306,13 +1309,9 @@ static void
 on_menu_toggle_fullscreen (GSimpleAction *a, GVariant *p, gpointer data)
 {
     (void) a; (void) p;
-    DvWidget  *self = DV_WIDGET (data);
-    GtkWindow *win  = GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (self)));
-    if (!win) return;
-    if (gtk_window_is_fullscreen (win))
-        gtk_window_unfullscreen (win);
-    else
-        gtk_window_fullscreen (win);
+    /* The window owns fullscreen (and what it hides); this just asks it. */
+    GtkWidget *win = GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (data)));
+    if (win) gtk_widget_activate_action (win, "dv.fullscreen", NULL);
 }
 
 static void

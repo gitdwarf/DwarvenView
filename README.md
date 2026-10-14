@@ -26,8 +26,8 @@ DwarvenView loads images quickly via a progressive resolution ladder, lets you z
 - **Transforms** -- Rotate 90/180/270, flip horizontal/vertical, full zoom history with undo
 - **Slideshow** -- configurable interval (accepts fractions and expressions like `1/30`)
 - **Drag and drop** -- drop an image or a folder onto the window to open it
-- **Fullscreen** -- F11 or toolbar toggle button, syncs to menu checkmark
-- **Preferences** -- pan inversion (L/R, U/D, wheel axes), slideshow interval, right-click menu style (hide or grey unavailable items)
+- **Fullscreen** -- F11, Escape (leaves it) or the toolbar toggle button, synced to the menu checkmark. Optionally image only: Preferences can hide the menu, toolbar and status bar while fullscreen.
+- **Preferences** -- loading splash, fullscreen image only, pan inversion (L/R, U/D, wheel axes), slideshow interval, right-click menu style (hide or grey unavailable items)
 - **Right-click menu** -- context-sensitive, with separators. Fullscreen, zoom/transform, wallpaper/convert/send, properties, help, exit.
 - **Properties** -- Ctrl+I (or File / right-click menu) shows file details and full EXIF, XMP and media metadata. DwarvenView does no metadata parsing of its own: it uses the best tool installed, trying exiftool, then exiv2, then mediainfo, then ffprobe, then a built-in summary. The window says which one answered and suggests exiftool if it is missing.
 - **Help** -- built-in keyboard reference, accessible from toolbar, menu, and right-click
@@ -145,6 +145,7 @@ dwarvenview ~/Photos/          # open a folder
 | V | Flip vertical |
 | Space | Toggle slideshow |
 | F11 | Toggle fullscreen |
+| Esc | Leave fullscreen (after undoing any zoom steps) |
 
 ## Blade Runner style crop-and-zoom
 
@@ -212,6 +213,7 @@ dwarvenview/
   Makefile                 Thin wrapper for make/make install
   build.sh                 Convenience build script (see Installation)
   dwarvenview.info         Version and package metadata (single source of truth)
+  CHANGELOG.md             What changed in each version
   LICENSE
 ```
 

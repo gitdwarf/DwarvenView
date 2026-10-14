@@ -20,6 +20,7 @@ typedef struct {
     DvViewMode  default_view_mode;     /* view mode applied to every freshly loaded image */
     gboolean    show_loading_splash;   /* FALSE = never show the loading placeholder/overlay */
     double      loading_splash_delay;  /* seconds (0.0-1.0) to wait before showing it, when ON */
+    gboolean    fullscreen_hide_ui;    /* TRUE = fullscreen shows the image only: no menu, toolbar or status bar */
     gboolean    browse_media;          /* TRUE = Open and next/previous also take audio and video; FALSE = images only */
 } DvPrefs;
 

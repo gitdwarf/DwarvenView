@@ -1,4 +1,5 @@
 #include "dv_props_dialog.h"
+#include "dv_dialog_keys.h"
 #include "dv_props.h"
 
 #include <string.h>
@@ -200,18 +201,6 @@ on_close_clicked (GtkButton *b, gpointer win)
     gtk_window_destroy (GTK_WINDOW (win));
 }
 
-static gboolean
-on_key (GtkEventControllerKey *ctrl, guint keyval, guint keycode,
-        GdkModifierType mods, gpointer win)
-{
-    (void) ctrl; (void) keycode; (void) mods;
-    if (keyval == GDK_KEY_Escape) {
-        gtk_window_destroy (GTK_WINDOW (win));
-        return TRUE;
-    }
-    return FALSE;
-}
-
 static void
 on_destroy (GtkWidget *w, gpointer unused)
 {
@@ -290,9 +279,7 @@ build_window (GtkWindow *parent)
     g_signal_connect (copy,  "clicked", G_CALLBACK (on_copy_clicked),  win);
     g_signal_connect (close, "clicked", G_CALLBACK (on_close_clicked), win);
 
-    GtkEventController *keys = gtk_event_controller_key_new ();
-    g_signal_connect (keys, "key-pressed", G_CALLBACK (on_key), win);
-    gtk_widget_add_controller (win, keys);
+    dv_dialog_keys_attach (win, NULL, NULL, NULL);
 
     /* Keep focus off the selectable labels, which would otherwise start with
      * their text selected. */

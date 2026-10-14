@@ -5,6 +5,7 @@
 #include "dv_widget.h"
 #include "dv_engine.h"
 #include "dv_prefs.h"
+#include "dv_dialog_keys.h"
 #include "dv_props_dialog.h"
 #include "dv_debug.h"
 #include "dv_viewable.h"
@@ -26,18 +27,20 @@ static void slideshow_start        (void);
 static void on_slideshow_toggle    (GtkButton *b, gpointer d);
 static void on_slideshow_action    (GSimpleAction *a, GVariant *p, gpointer d);
 static void on_fullscreen_action   (GSimpleAction *a, GVariant *p, gpointer d);
+static void toggle_fullscreen      (void);
+static void sync_fullscreen_chrome  (void);
 static void on_fullscreen_notify   (GObject *win, GParamSpec *ps, gpointer action);
 static void show_convert_menu      (GtkButton *btn, gpointer data);
 static void on_browse_fallback_dir (GtkButton *btn, gpointer data);
 static void on_browse_response     (GObject *source, GAsyncResult *result, gpointer data);
 static void on_prefs_save          (GtkButton *btn, gpointer dlg);
 static void on_prefs_cancel        (GtkButton *btn, gpointer dlg);
+static void prefs_accept_key       (GtkWidget *dlg, gpointer unused);
+static void prefs_cancel_key       (GtkWidget *dlg, gpointer unused);
 static void on_zoom_actual_btn     (GtkButton *b, gpointer d);
 static void on_splash_cb_toggled   (GtkCheckButton *cb, gpointer user_data);
 static void     on_help_wrapper     (GObject *obj, gpointer data);
 static void     on_help            (GSimpleAction *a, GVariant *p, gpointer d);
-static gboolean on_help_key        (GtkWidget *win, guint keyval, guint keycode, GdkModifierType mods, GtkEventControllerKey *ctrl);
-static gboolean on_prefs_key       (GtkEventControllerKey *ctrl, guint keyval, guint keycode, GdkModifierType state_mod, gpointer dlg);
 static void on_prefs_cancel        (GtkButton *btn, gpointer dlg);
 
 #define APP_ID "com.dwarven.view"
@@ -49,6 +52,7 @@ typedef struct {
     GtkWidget      *headerbar;
     GtkWidget      *menu_btn;
     GtkWidget      *statusbar;
+    GtkWidget      *menubar, *toolbar;   /* hidden in fullscreen when the pref says so */
 
     /* Current file and directory for navigation */
     char           *current_dir;
@@ -367,15 +371,19 @@ on_window_key (GtkEventControllerKey *ctrl,
         return TRUE;
     }
     if (keyval == GDK_KEY_F11) {
-        GtkWindow *win = GTK_WINDOW (state.window);
-        if (gtk_window_is_fullscreen (win))
-            gtk_window_unfullscreen (win);
-        else
-            gtk_window_fullscreen (win);
+        toggle_fullscreen ();
+        return TRUE;
+    }
+    /* Escape also leaves fullscreen (the image view keeps it first for undoing a zoom) */
+    if (keyval == GDK_KEY_Escape && gtk_window_is_fullscreen (GTK_WINDOW (state.window))) {
+        gtk_window_unfullscreen (GTK_WINDOW (state.window));
         return TRUE;
     }
     return FALSE;
 }
+
+/* Widgets of the Preferences dialog that Save reads back. */
+typedef struct { GtkWidget *dlg, *cb_lr, *cb_ud, *cb_wud, *cb_wlr, *entry, *ctx_cb, *view_actual_rb, *splash_cb, *delay_scale, *media_cb, *fs_cb; } DlgW;
 
 /* ── Build UI ───────────────────────────────────────────────────────────── */
 
@@ -784,6 +792,16 @@ show_prefs_dialog (void)
     gtk_frame_set_child (GTK_FRAME (splash_frame), splash_box);
     gtk_box_append (GTK_BOX (page_viewing), splash_frame);
 
+    /* Fullscreen */
+    GtkWidget *fs_frame = gtk_frame_new ("Fullscreen");
+    GtkWidget *fs_cb    = gtk_check_button_new_with_label (
+        "Image only: hide the menu, toolbar and status bar");
+    gtk_widget_set_tooltip_text (fs_cb,
+        "F11 or Escape returns to the window. The keyboard shortcuts keep working.");
+    gtk_check_button_set_active (GTK_CHECK_BUTTON (fs_cb), state.prefs->fullscreen_hide_ui);
+    gtk_frame_set_child (GTK_FRAME (fs_frame), fs_cb);
+    gtk_box_append (GTK_BOX (page_viewing), fs_frame);
+
     /* Which files Open and next/previous take */
     GtkWidget *media_frame = gtk_frame_new ("Browsing");
     GtkWidget *media_cb    = gtk_check_button_new_with_label (
@@ -809,7 +827,6 @@ show_prefs_dialog (void)
     gtk_window_set_child (GTK_WINDOW (dlg), outer);
 
     /* Wire save button */
-    typedef struct { GtkWidget *dlg, *cb_lr, *cb_ud, *cb_wud, *cb_wlr, *entry, *ctx_cb, *view_actual_rb, *splash_cb, *delay_scale, *media_cb; } DlgW;
     DlgW *dw   = g_new0 (DlgW, 1);
     dw->dlg    = dlg;
     dw->cb_lr  = cb_lr;
@@ -822,6 +839,7 @@ show_prefs_dialog (void)
     dw->splash_cb = splash_cb;
     dw->delay_scale = delay_scale;
     dw->media_cb = media_cb;
+    dw->fs_cb    = fs_cb;
     g_object_set_data_full (G_OBJECT (dlg), "dw", dw, g_free);
     g_object_set_data (G_OBJECT (dlg), "ss_entry", ss_entry);
 
@@ -829,37 +847,29 @@ show_prefs_dialog (void)
     g_signal_connect (btn_cancel, "clicked", G_CALLBACK (on_prefs_cancel), dlg);
 
     /* Keyboard: Enter=save, Escape=cancel */
-    GtkEventController *key_ctrl = gtk_event_controller_key_new ();
-    /* CAPTURE phase: intercept Enter before focused child (GtkCheckButton) sees it */
-    gtk_event_controller_set_propagation_phase (key_ctrl, GTK_PHASE_CAPTURE);
-    g_signal_connect (key_ctrl, "key-pressed", G_CALLBACK (on_prefs_key), dlg);
-    gtk_widget_add_controller (dlg, key_ctrl);
+    dv_dialog_keys_attach (dlg, prefs_accept_key, prefs_cancel_key, NULL);
 
     gtk_window_present (GTK_WINDOW (dlg));
 }
 
-static gboolean
-on_prefs_key (GtkEventControllerKey *ctrl, guint keyval,
-              guint keycode, GdkModifierType state_mod,
-              gpointer dlg)
+static void
+prefs_accept_key (GtkWidget *dlg, gpointer unused)
 {
-    (void) ctrl; (void) keycode; (void) state_mod;
-    if (keyval == GDK_KEY_Return || keyval == GDK_KEY_KP_Enter) {
-        on_prefs_save (NULL, dlg);
-        return TRUE;
-    }
-    if (keyval == GDK_KEY_Escape) {
-        on_prefs_cancel (NULL, dlg);
-        return TRUE;
-    }
-    return FALSE;
+    (void) unused;
+    on_prefs_save (NULL, dlg);
+}
+
+static void
+prefs_cancel_key (GtkWidget *dlg, gpointer unused)
+{
+    (void) unused;
+    on_prefs_cancel (NULL, dlg);
 }
 
 static void
 on_prefs_save (GtkButton *btn, gpointer dlg)
 {
     (void) btn;
-    typedef struct { GtkWidget *dlg, *cb_lr, *cb_ud, *cb_wud, *cb_wlr, *entry, *ctx_cb, *view_actual_rb, *splash_cb, *delay_scale, *media_cb; } DlgW;
     DlgW *dw = g_object_get_data (G_OBJECT (dlg), "dw");
 
     state.prefs->pan.invert_arrow_lr =
@@ -900,11 +910,16 @@ on_prefs_save (GtkButton *btn, gpointer dlg)
         state.prefs->loading_splash_delay =
             gtk_range_get_value (GTK_RANGE (dw->delay_scale));
 
+    if (dw->fs_cb)
+        state.prefs->fullscreen_hide_ui =
+            gtk_check_button_get_active (GTK_CHECK_BUTTON (dw->fs_cb));
+
     if (dw->media_cb)
         state.prefs->browse_media =
             gtk_check_button_get_active (GTK_CHECK_BUTTON (dw->media_cb));
 
     dv_prefs_save (state.prefs);
+    sync_fullscreen_chrome ();
     dv_widget_set_pan_prefs (DV_WIDGET (state.view), &state.prefs->pan);
     gtk_window_destroy (GTK_WINDOW (dlg));
 }
@@ -1020,20 +1035,6 @@ static __attribute__((used)) void on_zoom_in_btn    (GtkButton *b, gpointer d) {
 static __attribute__((used)) void on_zoom_out_btn   (GtkButton *b, gpointer d) { (void)b;(void)d; if (state.view) { dv_widget_zoom_centre (DV_WIDGET (state.view), 0.80); update_statusbar (); } }
 static __attribute__((used)) void on_zoom_reset_btn (GtkButton *b, gpointer d) { (void)b;(void)d; if (state.view) { dv_widget_reset_zoom  (DV_WIDGET (state.view));        update_statusbar (); } }
 
-static gboolean
-on_help_key (GtkWidget *win, guint keyval, guint keycode,
-             GdkModifierType mods, GtkEventControllerKey *ctrl)
-{
-    (void) keycode; (void) mods; (void) ctrl;
-    if (keyval == GDK_KEY_Escape ||
-        keyval == GDK_KEY_Return ||
-        keyval == GDK_KEY_KP_Enter) {
-        gtk_window_destroy (GTK_WINDOW (win));
-        return TRUE;
-    }
-    return FALSE;
-}
-
 static void
 on_help_wrapper (GObject *obj, gpointer data)
 {
@@ -1066,11 +1067,7 @@ on_help (GSimpleAction *a, GVariant *p, gpointer d)
     g_signal_connect_swapped (help_win, "destroy",
                               G_CALLBACK (g_nullify_pointer), &help_win);
 
-    /* Escape or Enter closes the help window */
-    GtkEventController *help_key = gtk_event_controller_key_new ();
-    g_signal_connect_swapped (help_key, "key-pressed",
-        G_CALLBACK (on_help_key), help_win);
-    gtk_widget_add_controller (help_win, help_key);
+    dv_dialog_keys_attach (help_win, NULL, NULL, NULL);
 
     GtkWidget *scroll = gtk_scrolled_window_new ();
     gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
@@ -1082,6 +1079,7 @@ on_help (GSimpleAction *a, GVariant *p, gpointer d)
     gtk_widget_set_margin_end    (scroll, 16);
 
     GtkWidget *label = gtk_label_new (
+        "\n"
         "DwarvenView " PACKAGE_VERSION " -- Quick Reference\n"
         "\n"
         "NAVIGATION\n"
@@ -1124,14 +1122,20 @@ on_help (GSimpleAction *a, GVariant *p, gpointer d)
         "  Scaling uses spline36 + unsharp for maximum quality.\n"
         "\n"
         "FULLSCREEN\n"
-        "  F11                      Toggle fullscreen\n"
+        "  F11 or Escape            Toggle / leave fullscreen\n"
         "\n"
         "PREFERENCES\n"
-        "  File > Preferences       Viewing, browsing (slideshow interval, audio\n"
-        "                           and video), controls, saving\n"
+        "  File > Preferences       Viewing (loading splash, fullscreen image only),\n"
+        "                           browsing (slideshow interval, audio and video),\n"
+        "                           controls, saving\n"
         "\n"
         "WINDOW\n"
-        "  Resize the window        Image recentres and rescales to fit"
+        "  Resize the window        Image recentres and rescales to fit\n"
+        "\n"
+        "TROUBLESHOOTING\n"
+        "  If DwarvenView crashes or fails on an image: Help > About DwarvenView,\n"
+        "  then tick \"Log image decode calls\". Takes effect immediately.\n"
+        "\n"
     );
     gtk_label_set_selectable (GTK_LABEL (label), FALSE);
     gtk_label_set_xalign     (GTK_LABEL (label), 0.0f);
@@ -1264,6 +1268,10 @@ on_about (GSimpleAction *a, GVariant *p, gpointer d)
     gtk_box_append (GTK_BOX (btn_row), btn_close);
     gtk_box_append (GTK_BOX (box), btn_row);
 
+    /* Escape/Enter close it; focus starts on the one control so Space toggles it */
+    dv_dialog_keys_attach (about_win, NULL, NULL, NULL);
+    gtk_window_set_focus (GTK_WINDOW (about_win), chk);
+
     gtk_window_present (GTK_WINDOW (about_win));
 }
 
@@ -1308,6 +1316,27 @@ slideshow_tick (gpointer data)
 }
 
 static void
+toggle_fullscreen (void)
+{
+    GtkWindow *win = GTK_WINDOW (state.window);
+    if (gtk_window_is_fullscreen (win))
+        gtk_window_unfullscreen (win);
+    else
+        gtk_window_fullscreen (win);
+}
+
+/* Fullscreen shows the controls unless the user chose "image only". */
+static void
+sync_fullscreen_chrome (void)
+{
+    gboolean hide = gtk_window_is_fullscreen (GTK_WINDOW (state.window)) &&
+                    state.prefs && state.prefs->fullscreen_hide_ui;
+    gtk_widget_set_visible (state.menubar,   !hide);
+    gtk_widget_set_visible (state.toolbar,   !hide);
+    gtk_widget_set_visible (state.statusbar, !hide);
+}
+
+static void
 on_fullscreen_notify (GObject *win, GParamSpec *ps, gpointer action)
 {
     (void) ps;
@@ -1315,17 +1344,14 @@ on_fullscreen_notify (GObject *win, GParamSpec *ps, gpointer action)
     /* Sync stateful action state so menu shows checkmark */
     g_simple_action_set_state (G_SIMPLE_ACTION (action),
                                g_variant_new_boolean (is_fs));
+    sync_fullscreen_chrome ();
 }
 
 static void
 on_fullscreen_action (GSimpleAction *a, GVariant *p, gpointer d)
 {
     (void) a; (void) p; (void) d;
-    GtkWindow *win = GTK_WINDOW (state.window);
-    if (gtk_window_is_fullscreen (win))
-        gtk_window_unfullscreen (win);
-    else
-        gtk_window_fullscreen (win);
+    toggle_fullscreen ();
 }
 
 static void
@@ -1829,6 +1855,8 @@ build_ui (GtkApplication *app)
     gtk_widget_set_margin_top    (state.statusbar, 2);
     gtk_widget_set_margin_bottom (state.statusbar, 2);
 
+    state.menubar = menubar;
+    state.toolbar = toolbar;
     GtkWidget *vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     gtk_box_append (GTK_BOX (vbox), menubar);
     gtk_box_append (GTK_BOX (vbox), toolbar);

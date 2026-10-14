@@ -25,6 +25,7 @@ dwarvenview_sources = files(
   'dv_prefs.c',
   'dv_props.c',
   'dv_props_dialog.c',
+  'dv_dialog_keys.c',
   'dv_debug.c',
   'dv_viewable.c',
 )

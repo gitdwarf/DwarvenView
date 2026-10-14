@@ -38,6 +38,7 @@ dv_prefs_load (void)
     p->default_view_mode    = DV_VIEW_MODE_FIT;
     p->show_loading_splash  = TRUE;    /* preserves current always-on behavior */
     p->loading_splash_delay = 0.0;     /* preserves current immediate-display behavior */
+    p->fullscreen_hide_ui   = FALSE;   /* fullscreen keeps the controls unless asked */
     p->browse_media         = FALSE;   /* images only unless asked */
 
     char *path = config_path ();
@@ -74,6 +75,10 @@ dv_prefs_load (void)
     if (g_key_file_has_key (kf, CONF_GROUP, "show_loading_splash", NULL))
         p->show_loading_splash = g_key_file_get_boolean (kf, CONF_GROUP,
             "show_loading_splash", NULL);
+
+    if (g_key_file_has_key (kf, CONF_GROUP, "fullscreen_hide_ui", NULL))
+        p->fullscreen_hide_ui = g_key_file_get_boolean (kf, CONF_GROUP,
+            "fullscreen_hide_ui", NULL);
 
     if (g_key_file_has_key (kf, CONF_GROUP, "browse_media", NULL))
         p->browse_media = g_key_file_get_boolean (kf, CONF_GROUP,
@@ -128,6 +133,8 @@ dv_prefs_save (const DvPrefs *p)
         p->show_loading_splash);
     g_key_file_set_double (kf, CONF_GROUP, "loading_splash_delay",
         p->loading_splash_delay);
+    g_key_file_set_boolean (kf, CONF_GROUP, "fullscreen_hide_ui",
+        p->fullscreen_hide_ui);
     g_key_file_set_boolean (kf, CONF_GROUP, "browse_media",
         p->browse_media);
 
